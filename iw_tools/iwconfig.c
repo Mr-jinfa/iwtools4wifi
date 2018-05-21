@@ -475,11 +475,12 @@ static int
 print_info(int		skfd,
 	   char *	ifname,
 	   char *	args[],
-	   int		count)
+	   int		count, struct p_curwifi *cur_wifi, int operstate_fd)
 {
-  struct wireless_info	info;
+  static struct wireless_info	info;
+  char *operstate[16]={0,};
   int			rc;
-
+  bzero(&info, sizeof(struct wireless_info));
   /* Avoid "Unused parameter" warning */
   args = args; count = count;
 
@@ -488,7 +489,22 @@ print_info(int		skfd,
     {
     case 0:	/* Success */
       /* Display it ! */
+#ifndef HIDE_PRINT
       display_info(&info, ifname);
+#endif
+      cur_wifi->ESSID = info.b.essid;
+      cur_wifi->Singal = info.stats.qual.level -256;	  
+	  cur_wifi->link = cur_wifi->Singal == -256? 0:1;
+	  if(operstate_fd >0)
+	  {
+			read(operstate_fd, operstate, 16);
+//			printf("operstate:%s\n", operstate);
+			if(strncmp("dormant", operstate, strlen("dormant"))==0 || strncmp("down", operstate, strlen("down"))==0)
+				cur_wifi->link = 0;
+			else if(strncmp("up", operstate, strlen("up"))==0)
+				cur_wifi->link = 1;
+	  }
+//    cur_wifi->addr_mac = info.ap_addr.sa_data;
       break;
 
     case -ENOTSUP:
@@ -1905,9 +1921,7 @@ iw_usage(void)
 /*
  * The main !
  */
-int
-main(int	argc,
-     char **	argv)
+int main_iwconfig(struct p_curwifi *cur_wifi, int operstate_fd)
 {
   int skfd;		/* generic raw socket desc.	*/
   int goterr = 0;
@@ -1919,33 +1933,7 @@ main(int	argc,
       exit(-1);
     }
 
-  /* No argument : show the list of all device + info */
-  if(argc == 1)
-    iw_enum_devices(skfd, &print_info, NULL, 0);
-  else
-    /* Special case for help... */
-    if((!strcmp(argv[1], "-h")) || (!strcmp(argv[1], "--help")))
-      iw_usage();
-    else
-      /* Special case for version... */
-      if(!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version"))
-	goterr = iw_print_version_info("iwconfig");
-      else
-	{
-	  /* '--' escape device name */
-	  if((argc > 2) && !strcmp(argv[1], "--"))
-	    {
-	      argv++;
-	      argc--;
-	    }
-
-	  /* The device name must be the first argument */
-	  if(argc == 2)
-	    print_info(skfd, argv[1], NULL, 0);
-	  else
-	    /* The other args on the line specify options to be set... */
-	    goterr = set_info(skfd, argv + 2, argc - 2, argv[1]);
-	}
+  print_info(skfd, "wlan0", NULL, 0, cur_wifi, operstate_fd);
 
   /* Close the socket. */
   iw_sockets_close(skfd);

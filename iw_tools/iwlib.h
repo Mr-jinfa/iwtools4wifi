@@ -31,6 +31,7 @@
 #include <net/ethernet.h>	/* struct ether_addr */
 #include <sys/time.h>		/* struct timeval */
 #include <unistd.h>
+#include <sys/wait.h>
 
 /* This is our header selection. Try to hide the mess and the misery :-(
  * Don't look, you would go blind ;-)
@@ -93,6 +94,23 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct p_curwifi {
+		int   link;
+		short Singal;
+		float Frequency;
+		char *ESSID;
+		char *addr_mac;
+};
+struct p_wifi_list {
+		char *ESSID;
+		short Singal;
+		struct p_wifi_list *next;
+};
+struct p_connect {
+		char essid[32];
+		char password_wifi[32];
+};
 
 /****************************** DEBUG ******************************/
 

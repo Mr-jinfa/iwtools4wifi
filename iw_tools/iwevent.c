@@ -755,7 +755,7 @@ static const struct option long_opts[] = {
  * main body of the program
  */
 int
-main(int	argc,
+main_iwevent(int	argc,
      char *	argv[])
 {
   struct rtnl_handle	rth;

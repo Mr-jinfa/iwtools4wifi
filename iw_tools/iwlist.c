@@ -433,6 +433,29 @@ iw_print_gen_ie(unsigned char *	buffer,
 }
 #endif	/* WE_ESSENTIAL */
 
+struct p_wifi_list *creat_wifi_list_node()
+ {
+	 struct p_wifi_list *node;
+	 node = (struct p_wifi_list *)malloc(sizeof(struct p_wifi_list));
+	 node->ESSID = (char *)malloc(IW_ESSID_MAX_SIZE+1);
+	 node->Singal = 0;
+	 node->next = NULL;
+	 return node;
+ }
+ 
+ void add_list_tail(struct p_wifi_list *wifi_list_head, struct p_wifi_list *node)
+ {
+	 struct p_wifi_list *q = wifi_list_head;
+	 if(node == NULL){
+		 printf("[fun] add_list_tail fail line:%d\n", __LINE__);
+	 }
+	 else{
+		 while(q->next !=NULL)
+			 q = q->next;
+		 q->next = node;
+	 }
+ }
+
 /***************************** SCANNING *****************************/
 /*
  * This one behave quite differently from the others
@@ -453,7 +476,8 @@ print_scanning_token(struct stream_descr *	stream,	/* Stream of events */
 		     struct iw_event *		event,	/* Extracted token */
 		     struct iwscan_state *	state,
 		     struct iw_range *	iw_range,	/* Range info */
-		     int		has_range)
+		     int		has_range,
+		     struct p_wifi_list *wifi_list_head, struct p_wifi_list *node)
 {
   char		buffer[128];	/* Temporary buffer */
 
@@ -461,15 +485,19 @@ print_scanning_token(struct stream_descr *	stream,	/* Stream of events */
   switch(event->cmd)
     {
     case SIOCGIWAP:
+#ifndef HIDE_PRINT
       printf("          Cell %02d - Address: %s\n", state->ap_num,
 	     iw_saether_ntop(&event->u.ap_addr, buffer));
+#endif
       state->ap_num++;
       break;
     case SIOCGIWNWID:
+#ifndef HIDE_PRINT
       if(event->u.nwid.disabled)
 	printf("                    NWID:off/any\n");
       else
 	printf("                    NWID:%X\n", event->u.nwid.value);
+#endif
       break;
     case SIOCGIWFREQ:
       {
@@ -481,36 +509,51 @@ print_scanning_token(struct stream_descr *	stream,	/* Stream of events */
 	  channel = iw_freq_to_channel(freq, iw_range);
 	iw_print_freq(buffer, sizeof(buffer),
 		      freq, channel, event->u.freq.flags);
+#ifndef HIDE_PRINT
 	printf("                    %s\n", buffer);
+#endif
       }
       break;
     case SIOCGIWMODE:
       /* Note : event->u.mode is unsigned, no need to check <= 0 */
       if(event->u.mode >= IW_NUM_OPER_MODE)
 	event->u.mode = IW_NUM_OPER_MODE;
+#ifndef HIDE_PRINT
       printf("                    Mode:%s\n",
 	     iw_operation_mode[event->u.mode]);
+#endif
       break;
     case SIOCGIWNAME:
+#ifndef HIDE_PRINT
       printf("                    Protocol:%-1.16s\n", event->u.name);
+#endif
       break;
-    case SIOCGIWESSID:
+    case SIOCGIWESSID:	//=================================================
       {
 	char essid[IW_ESSID_MAX_SIZE+1];
 	memset(essid, '\0', sizeof(essid));
 	if((event->u.essid.pointer) && (event->u.essid.length))
 	  memcpy(essid, event->u.essid.pointer, event->u.essid.length);
+
 	if(event->u.essid.flags)
 	  {
 	    /* Does it have an ESSID index ? */
+#ifndef HIDE_PRINT
 	    if((event->u.essid.flags & IW_ENCODE_INDEX) > 1)
 	      printf("                    ESSID:\"%s\" [%d]\n", essid,
 		     (event->u.essid.flags & IW_ENCODE_INDEX));
-	    else
+	    else{
 	      printf("                    ESSID:\"%s\"\n", essid);
+
+/*#################################################################################################*/
+	    }
+#endif
+	  strcpy(node->ESSID, essid);
 	  }
+#ifndef HIDE_PRINT
 	else
 	  printf("                    ESSID:off/any/hidden\n");
+#endif
       }
       break;
     case SIOCGIWENCODE:
@@ -520,14 +563,19 @@ print_scanning_token(struct stream_descr *	stream,	/* Stream of events */
 	  memcpy(key, event->u.data.pointer, event->u.data.length);
 	else
 	  event->u.data.flags |= IW_ENCODE_NOKEY;
+#ifndef HIDE_PRINT
 	printf("                    Encryption key:");
+
 	if(event->u.data.flags & IW_ENCODE_DISABLED)
 	  printf("off\n");
 	else
+#endif
+
 	  {
 	    /* Display the key */
 	    iw_print_key(buffer, sizeof(buffer), key, event->u.data.length,
 			 event->u.data.flags);
+#ifndef HIDE_PRINT
 	    printf("%s", buffer);
 
 	    /* Other info... */
@@ -538,10 +586,12 @@ print_scanning_token(struct stream_descr *	stream,	/* Stream of events */
 	    if(event->u.data.flags & IW_ENCODE_OPEN)
 	      printf("   Security mode:open");
 	    printf("\n");
+#endif
 	  }
       }
       break;
     case SIOCGIWRATE:
+#ifndef HIDE_PRINT
       if(state->val_index == 0)
 	printf("                    Bit Rates:");
       else
@@ -549,12 +599,17 @@ print_scanning_token(struct stream_descr *	stream,	/* Stream of events */
 	  printf("\n                              ");
 	else
 	  printf("; ");
+#endif
       iw_print_bitrate(buffer, sizeof(buffer), event->u.bitrate.value);
+#ifndef HIDE_PRINT
       printf("%s", buffer);
+#endif
       /* Check for termination */
       if(stream->value == NULL)
 	{
+#ifndef HIDE_PRINT
 	  printf("\n");
+#endif
 	  state->val_index = 0;
 	}
       else
@@ -562,6 +617,7 @@ print_scanning_token(struct stream_descr *	stream,	/* Stream of events */
       break;
     case SIOCGIWMODUL:
       {
+#ifndef HIDE_PRINT
 	unsigned int	modul = event->u.param.value;
 	int		i;
 	int		n = 0;
@@ -578,17 +634,24 @@ print_scanning_token(struct stream_descr *	stream,	/* Stream of events */
 	      }
 	  }
 	printf("\n");
+#endif
       }
       break;
     case IWEVQUAL:
       iw_print_stats(buffer, sizeof(buffer),
 		     &event->u.qual, iw_range, has_range);
+#ifndef HIDE_PRINT
       printf("                    %s\n", buffer);
+#endif
+/*#############################################################################################*/  
+      node->Singal = event->u.qual.level -256;    
       break;
 #ifndef WE_ESSENTIAL
     case IWEVGENIE:
       /* Informations Elements are complex, let's do only some of them */
+#ifndef HIDE_PRINT
       iw_print_gen_ie(event->u.data.pointer, event->u.data.length);
+#endif
       break;
 #endif	/* WE_ESSENTIAL */
     case IWEVCUSTOM:
@@ -597,12 +660,17 @@ print_scanning_token(struct stream_descr *	stream,	/* Stream of events */
 	if((event->u.data.pointer) && (event->u.data.length))
 	  memcpy(custom, event->u.data.pointer, event->u.data.length);
 	custom[event->u.data.length] = '\0';
+#ifndef HIDE_PRINT
 	printf("                    Extra:%s\n", custom);
+#endif
       }
       break;
     default:
+#ifndef HIDE_PRINT
       printf("                    (Unknown Wireless Token 0x%04X)\n",
 	     event->cmd);
+#endif
+	break;
    }	/* switch(event->cmd) */
 }
 
@@ -614,7 +682,7 @@ static int
 print_scanning_info(int		skfd,
 		    char *	ifname,
 		    char *	args[],		/* Command line args */
-		    int		count)		/* Args count */
+		    int		count, struct p_wifi_list *wifi_list_head)		/* Args count */
 {
   struct iwreq		wrq;
   struct iw_scan_req    scanopt;		/* Options for 'set' */
@@ -862,17 +930,25 @@ print_scanning_info(int		skfd,
 #endif
       printf("%-8.16s  Scan completed :\n", ifname);
       iw_init_event_stream(&stream, (char *) buffer, wrq.u.data.length);
+	  struct p_wifi_list *node = NULL;
       do
 	{
 	  /* Extract an event and print it */
 	  ret = iw_extract_event_stream(&stream, &iwe,
 					range.we_version_compiled);
-	  if(ret > 0)
-	    print_scanning_token(&stream, &iwe, &state,
-				 &range, has_range);
-	}
-      while(ret > 0);
-      printf("\n");
+	  if(ret > 0){
+			if(iwe.cmd == SIOCGIWESSID){
+	  			node = creat_wifi_list_node();
+	  		}
+			print_scanning_token(&stream, &iwe, &state,
+					 &range, has_range, wifi_list_head, node);	
+			if(iwe.cmd == IWEVQUAL){
+				add_list_tail(wifi_list_head, node);
+			}
+		}
+		
+	}while(ret > 0);
+    printf("\n");
     }
   else
     printf("%-8.16s  No scan results\n\n", ifname);
@@ -2149,41 +2225,22 @@ static void iw_usage(int status)
 /*
  * The main !
  */
-int
-main(int	argc,
-     char **	argv)
+int main_iwlist(struct p_wifi_list *wifi_list_head)
 {
   int skfd;			/* generic raw socket desc.	*/
-  char *dev;			/* device name			*/
-  char *cmd;			/* command			*/
+  char *dev = "wlan0";			/* device name			*/
   char **args;			/* Command arguments */
   int count;			/* Number of arguments */
-  const iwlist_cmd *iwcmd;
+  int argc = 3;
 
-  if(argc < 2)
-    iw_usage(1);
-
-  /* Those don't apply to all interfaces */
-  if((argc == 2) && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")))
-    iw_usage(0);
-  if((argc == 2) && (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")))
-    return(iw_print_version_info("iwlist"));
-
-  if(argc == 2)
-    {
-      cmd = argv[1];
-      dev = NULL;
-      args = NULL;
-      count = 0;
-    }
-  else
-    {
-      cmd = argv[2];
-      dev = argv[1];
-      args = argv + 3;
-      count = argc - 3;
-    }
-
+  char *argv[3];
+  argv[0] = "iwlist";
+  argv[1] = "wlan0";
+  argv[2] = "scanning";
+  args = argv + 3;
+  count = argc - 3;
+  //我们不需要让iwlist找寻命令
+#if 0
   /* find a command */
   iwcmd = find_command(cmd);
   if(iwcmd == NULL)
@@ -2209,7 +2266,16 @@ main(int	argc,
     (*iwcmd->fn)(skfd, dev, args, count);
   else
     iw_enum_devices(skfd, iwcmd->fn, args, count);
-
+#endif
+  /* Create a channel to the NET kernel. */
+  if((skfd = iw_sockets_open()) < 0)
+  {
+	 perror("socket");
+	 return -1;
+  }
+  /* do the actual work */
+  print_scanning_info(skfd, dev, args, count, wifi_list_head);
+  
   /* Close the socket. */
   iw_sockets_close(skfd);
 

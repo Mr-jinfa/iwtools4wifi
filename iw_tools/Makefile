@@ -47,7 +47,7 @@ WEXT_HEADER = wireless.$(WE_VERSION).h
 # Targets to build
 STATIC=libiw.a
 DYNAMIC=libiw.so.$(WT_VERSION)
-PROGS= iwconfig iwlist iwpriv iwspy iwgetid iwevent ifrename
+PROGS= iwpriv iwspy iwgetid ifrename
 MANPAGES8=iwconfig.8 iwlist.8 iwpriv.8 iwspy.8 iwgetid.8 iwevent.8 ifrename.8
 MANPAGES7=wireless.7
 MANPAGES5=iftab.5
@@ -56,8 +56,13 @@ EXTRAPROGS= macaddr iwmulticall
 # Composition of the library :
 OBJS = iwlib.o
 
+OPWIFI = iwconfig.c iwlist.c iwevent.c iwmulticall.c
+SRC_WIFI = $(wildcard $(OPWIFI))
+OBJ_WIFI = $(SRC_WIFI:%.c=%.o)
+
+BUILD_STATIC :=1
+
 # Select which library to build and to link tool with
-BUILD_STATIC = 1
 ifdef BUILD_STATIC
   IWLIB=$(STATIC)
   IWLIB_INSTALL=install-static
@@ -136,11 +141,20 @@ ifrename: ifrename.o $(IWLIB)
 
 macaddr: macaddr.o $(IWLIB)
 
-# Always do symbol stripping here
-iwmulticall: iwmulticall.o
-	$(CC) $(LDFLAGS) -Wl,-s $(XCFLAGS) -o $@ $^ $(LIBS)
+wifiopt: libwifi_opt.a
 
-# It's a kind of magic...
+##############################################################################
+libwifi_opt.a: $(OBJ_WIFI)
+	$(AR) -r libwifi_opt.a $^
+
+%.o: %.c wireless.h
+	$(CC) $(XCFLAGS) -c $<
+%.a: %.c wireless.h
+	$(CC) $(XCFLAGS) $(PICFLAG) -c -o $@ $<
+
+##############################################################################
+
+# It's a kind of magic... '
 wireless.h:
 	cp $(WEXT_HEADER) wireless.h
 
@@ -158,9 +172,9 @@ $(STATIC): $(OBJS:.o=.so)
 # Less crude thanks to many contributions ;-)
 install:
 	@echo "install iwtools"; \
-	cp -f ./iwlist      ../../../../osdrv/rootfs_scripts/rootfs/usr/bin/iwlist; \
-	cp -f  ./iwpriv      ../../../../osdrv/rootfs_scripts/rootfs/usr/bin/iwpriv; \
-	cp -f ./libiw.so.29 ../../../../osdrv/rootfs_scripts/rootfs/usr/lib/libiw.so.29; 
+	cp libwifi_opt.a ../../../../mpp/lib/
+	cp libiw.a ../../../../mpp/lib/
+
 #: $(IWLIB_INSTALL) install-bin install-hdr install-man
 
 # Install the dynamic library
