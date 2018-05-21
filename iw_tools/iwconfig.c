@@ -478,7 +478,7 @@ print_info(int		skfd,
 	   int		count, struct p_curwifi *cur_wifi, int operstate_fd)
 {
   static struct wireless_info	info;
-  char *operstate[16]={0,};
+  char operstate[16]={0};
   int			rc;
   bzero(&info, sizeof(struct wireless_info));
   /* Avoid "Unused parameter" warning */

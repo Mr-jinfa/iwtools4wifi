@@ -14,6 +14,7 @@
 
 /*
  *获取wifi对象信息
+ *operstate_fd 由open (/sys/class/net/wlan0/operstate)可得
  *operstate fd 为0时 link参数无效。 
 */
 struct p_curwifi *get_curwifi_info(struct p_curwifi *cur_wifi, int operstate_fd) //调用iwconfig
